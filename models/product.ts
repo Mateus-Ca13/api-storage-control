@@ -1,4 +1,4 @@
-export interface Item {
+export interface Product {
     id: string
     name: string
     unitOfMeasure: UnitOfMeasureType
