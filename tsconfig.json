@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",               // versão do JS que o TS vai gerar
+    "module": "NodeNext",             // pra usar import/export nativos
+    "moduleResolution": "NodeNext",   // resolve imports de módulos
+    "rootDir": "./src",               // onde estão seus arquivos TS
+    "outDir": "./dist",               // onde os JS compilados vão
+    "strict": true,                   // ativa todas as checagens de tipo
+    "esModuleInterop": true,          // compatibilidade com require de módulos CJS
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*", "src/utils", "config", "src/types/**/*", "src/server.ts", "prisma/seed.ts"],
+  "exclude": ["node_modules", "dist"]
+}

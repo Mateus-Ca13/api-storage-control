@@ -1,4 +1,4 @@
-interface MovementBatch {
+export interface iMovementBatch {
     id: string
     type: MovementBatchType
     originStockId: string | null

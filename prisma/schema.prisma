@@ -4,6 +4,9 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+// terminal -> npx prisma migrate dev --name init
+// terminal -> npx prisma studio
+
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -13,3 +16,142 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum ProductMeasurementEnum {
+  UN
+  KG
+  L
+  M
+}
+
+enum UserRoleEnum {
+  ADMIN
+  USER
+  SUPER_ADMIN
+}
+
+enum StockTypeEnum {
+  CENTRAL
+  SECONDARY
+}
+
+enum StockStatusEnum {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
+enum MovementTypeEnum {
+  ENTRY
+  EXIT
+  TRANSFER
+}
+
+
+
+model User {
+  id            String   @id @default(uuid())
+  name          String  
+  username      String   @unique
+  email         String   @unique 
+  role          UserRoleEnum @default(ADMIN)
+  password      String
+  createdAt     DateTime @default(now())
+
+  // Relations
+  refreshTokens RefreshToken[]
+  movementBatches MovementBatch[]
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String  
+  description String  @default("")
+  measurement ProductMeasurementEnum  @default(UN)
+  codebar     String?   @unique
+  categoryId  String?   
+  minStock Decimal @db.Decimal(10, 2) @default(0)
+  isBelowMinStock Boolean @default(true)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  category    Category? @relation(fields: [categoryId], references: [id])
+  stockedQuantities StockedProduct[]
+  movements   MovementProduct[]
+  nfeMappings NfeProductMapping[]
+}
+
+model Category {
+  id   String @id @default(uuid())
+  name String @unique
+
+  // Relations
+  products Product[]
+}
+
+model Stock {
+  id          String   @id @default(uuid())
+  name        String
+  type        StockTypeEnum  @default(CENTRAL)
+  status      StockStatusEnum @default(ACTIVE)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  stockedProducts StockedProduct[]
+}
+
+model StockedProduct {
+  id          String   @id @default(uuid())
+  productId   String
+  stockId     String
+  quantity    Decimal
+
+  // Relations
+  products     Product  @relation(fields: [productId], references: [id])
+  stock        Stock    @relation(fields: [stockId], references: [id])
+}
+
+model MovementBatch {
+  id            String   @id @default(uuid())
+  type          MovementTypeEnum
+  observations  String?
+  createdAt     DateTime @default(now())
+  userCreatorId String
+
+  // Relations
+  products    MovementProduct[]
+  userCreator User @relation(fields: [userCreatorId], references: [id])
+}
+
+model MovementProduct {
+  id            String   @id @default(uuid())
+  productId     String
+  movementBatchId String
+  quantity      Decimal  @db.Decimal(10, 2)
+  pricePerUnit  Decimal?  @db.Decimal(10, 2)
+
+  // Relations
+  product      Product @relation(fields: [productId], references: [id])
+  movementBatch MovementBatch @relation(fields: [movementBatchId], references: [id])
+}
+
+model NfeProductMapping {
+  id          String   @id @default(uuid())
+  productId   String
+  nfeProductId String
+
+  // Relations
+  product     Product @relation(fields: [productId], references: [id])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String  
+  expiresAt DateTime @default(now())
+  revoked  Boolean  @default(false)
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id])
+}
+
