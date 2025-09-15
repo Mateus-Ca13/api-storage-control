@@ -1,7 +1,7 @@
 export interface iRefreshToken {
-  id: string;
+  id: number;
   token: string;
-  userId: string;
+  userId: number;
   expiresAt: Date;
   revoked: boolean;
 }

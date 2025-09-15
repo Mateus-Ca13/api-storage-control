@@ -1,4 +1,4 @@
 export interface iNfeProductMapping {
     nfeId: string
-    productId: string
+    productId: number
 }

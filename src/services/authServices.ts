@@ -52,7 +52,7 @@ export const loginUserService = async (email: string, password: string) => {
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    console.log(`isPasswordValid: ${isPasswordValid}, user.password: ${user.password}, password: ${password}`);
+    
     if(!isPasswordValid){
         throw new Error('Email ou senha inválidos.');
     }

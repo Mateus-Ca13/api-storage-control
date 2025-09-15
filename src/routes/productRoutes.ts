@@ -6,13 +6,13 @@ const router = Router();
 
 router.get('/',  getAllProductsController);
 
-router.get('/:id',  getProductByIdController)
+router.get('/:id',  getProductByIdController);
 
-router.post('/', createProductController)
+router.post('/', createProductController);
 
-router.patch('/:id', updateProductController)
+router.patch('/:id', updateProductController);
 
-router.delete('/:id', deleteProductController)
+router.delete('/:id', deleteProductController);
 
 export default router;
 

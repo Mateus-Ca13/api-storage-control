@@ -1,4 +1,3 @@
-import { error } from "console";
 import { Response } from "express";
 import { ZodError } from "zod";
 

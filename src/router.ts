@@ -2,6 +2,8 @@ import { Router } from "express";
 import productRoutes from "./routes/productRoutes";
 import dashboardRoutes from "./routes/dashboardRoutes";
 import authRoutes from "./routes/authRoutes";
+import stockRoutes from "./routes/stockRoutes";
+
 
 const mainRouter = Router();
 
@@ -21,6 +23,7 @@ const availableRoutes = [
 mainRouter.use('/auth', authRoutes)
 mainRouter.use('/products', productRoutes)
 mainRouter.use('/dashboard', dashboardRoutes)
+mainRouter.use('/stocks', stockRoutes)
 
 mainRouter.use('/', (req, res) => {
   res.send(` 

@@ -4,22 +4,21 @@ import { sendErrorResponse, sendResponse } from '../utils/response';
 import { Product } from '../../generated/prisma';
 import { registerProductSchema, updateProductSchema } from '../schemas/productsSchema';
 import { iProduct, ProductCreateInput, ProductUpdateInput } from '../types/product';
-import z from 'zod';
 
 
 export const getAllProductsController = async (req: Request, res: Response) => {
   try {
-    const { offset = "0", limit = "10", name, categoryId, isBelowMinStock, orderBy, sortBy } = req.query;
+    const { offset = "0", limit = "10", name, categoriesIds, isBelowMinStock, orderBy, sortBy, hasNoCodebar } = req.query;
 
-    console.log(req.query);
     const productsList = await getAllProductsService({
       offset: Number(offset),
       limit: Number(limit),
       name: name as string | undefined,
-      categoryId: categoryId as string | undefined,
+      categoriesIds: categoriesIds as number[] | undefined,
       isBelowMinStock: isBelowMinStock as string | undefined,
       orderBy: orderBy as 'asc' | 'desc',
-      sortBy: sortBy as 'name' | 'categoryId' | 'quantity' | undefined,
+      sortBy: sortBy as 'name' | 'categoryId' | 'stockedQuantities' | undefined,
+      hasNoCodebar: hasNoCodebar as string | undefined,
     });
     sendResponse(res, productsList, 'Lista de produtos retornada com sucesso', true, 200);
 
@@ -32,7 +31,7 @@ export const getAllProductsController = async (req: Request, res: Response) => {
 export const getProductByIdController = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const product : Product = await getProductByIdService(id);
+    const product : Product = await getProductByIdService(Number(id));
     sendResponse(res, product, 'Produto retornado com sucesso', true, 200);
 
   } catch (error: unknown) {
@@ -43,8 +42,7 @@ export const getProductByIdController = async (req: Request, res: Response) => {
 
 export const createProductController = async (req: Request, res: Response) => {
   try {
-    console.log(req.body);
-    const productData: ProductCreateInput = registerProductSchema.parse(req.body);
+    const productData: ProductCreateInput = registerProductSchema.parse(req.body.userData);
     const returnProduct: iProduct = await createProductService(productData);
     sendResponse(res, returnProduct, 'Produto criado com sucesso', true, 201);
 
@@ -59,7 +57,7 @@ export const updateProductController = async (req: Request, res: Response) => {
     const { id } = req.params;
     const newProductProps: ProductUpdateInput = updateProductSchema.parse(req.body);
 
-    const updatedProduct: iProduct = await updateProductService(id, newProductProps);
+    const updatedProduct: iProduct = await updateProductService(Number(id), newProductProps);
     sendResponse(res, updatedProduct, 'Produto atualizado com sucesso', true, 200);
 
   } catch (error: unknown) {
@@ -71,7 +69,7 @@ export const updateProductController = async (req: Request, res: Response) => {
 export const deleteProductController = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await deleteProductService(id);
+    const result = await deleteProductService(Number(id));
     sendResponse(res, result, 'Produto deletado com sucesso', true, 200);
     
   } catch (error: unknown) {

@@ -1,4 +1,5 @@
 export interface iCategory {
-    id: string
+    id: number
     name: string
+    colorPreset: number
 }

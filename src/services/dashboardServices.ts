@@ -4,24 +4,28 @@ export const getMainSummaryService = async () => {
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
 
     const resultData = await prisma.$transaction([
         prisma.product.count(),
+        prisma.product.count({ where: { createdAt: { gte: sevenDaysAgo } } }), 
         prisma.product.count({ where: { isBelowMinStock: true } }),
         prisma.stockedProduct.aggregate({ _sum: { quantity: true } }),
-        prisma.movementBatch.count({ where: { createdAt: { gte: sevenDaysAgo }}
-        })
+        prisma.movementProduct.aggregate({ _sum: { quantity: true }, where: { movementBatch: { type: 'EXIT', createdAt: {gte: yesterday } } } }),
+        prisma.movementBatch.count({ where: { createdAt: { gte: sevenDaysAgo }}}),
+        prisma.movementBatch.count({ where: { createdAt: { gte: yesterday }}}),
     ]);
 
-    if(resultData.length !== 4){
+    if(resultData.length !== 7){
         throw new Error('Erro ao obter resumo principal');
     }
-
+    
     return {
-        totalProductsRegistered: resultData[0],
-        productsBelowMinStock: resultData[1],
-        totalStockedQuantity: resultData[2]._sum.quantity || 0,
-        totalMovementsLastWeek: resultData[3]
+        totalProductsRegistered: {value:resultData[0], metrics: `+${resultData[1]} nos últimos 7 dias`},
+        productsBelowMinStock: {value: resultData[2], metrics: 'Atenção necesssária'},
+        totalStockedQuantity: {value: Math.ceil(Number(resultData[3]._sum.quantity) || 0), metrics: `${resultData[4]._sum.quantity ? resultData[4]._sum.quantity : 0} saídas desde ontem`},
+        totalMovementsLastWeek:  {value: resultData[5], metrics: `${resultData[6]} desde ontem`}
     };
 }
 
@@ -39,7 +43,7 @@ export const getProductsSummaryService = async () => {
     }
 
     return {
-        totalStockedQuantity: resultData[0]._sum.quantity || 0,
+        totalStockedQuantity: Number(resultData[0]._sum.quantity) || 0,
         totalProductsRegistered: resultData[1],
         productsWithoutCodebar: resultData[2],
         productsBelowMinStock: resultData[3],

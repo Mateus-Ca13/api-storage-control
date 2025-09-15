@@ -1,6 +1,6 @@
 export interface iMovementProduct{
-    productId: string
-    movementBatchId: string
+    productId: number
+    movementBatchId: number
     quantity: number
     pricePerUnit: number | null
 }

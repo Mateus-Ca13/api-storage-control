@@ -1,8 +1,8 @@
 export interface iMovementBatch {
-    id: string
+    id: number
     type: MovementBatchType
-    originStockId: string | null
-    destinationStockId: string | null
+    originStockId: number | null
+    destinationStockId: number | null
     observations: string
     createdAt: Date
 }

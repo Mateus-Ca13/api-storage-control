@@ -1,5 +1,5 @@
 export interface iProductStock {
-    stockId: string
-    productId: string
+    stockId: number
+    productId: number
     quantity: number
 }

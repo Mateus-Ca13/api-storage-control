@@ -50,7 +50,7 @@ enum MovementTypeEnum {
 
 
 model User {
-  id            String   @id @default(uuid())
+  id            Int   @id @default(autoincrement())
   name          String  
   username      String   @unique
   email         String   @unique 
@@ -64,12 +64,13 @@ model User {
 }
 
 model Product {
-  id          String   @id @default(uuid())
+  id          Int   @id @default(autoincrement())
   name        String  
   description String  @default("")
   measurement ProductMeasurementEnum  @default(UN)
   codebar     String?   @unique
-  categoryId  String?   
+  categoryId  Int?   
+  lastPrice   Decimal? @db.Decimal(10, 2)
   minStock Decimal @db.Decimal(10, 2) @default(0)
   isBelowMinStock Boolean @default(true)
   createdAt   DateTime @default(now())
@@ -82,15 +83,16 @@ model Product {
 }
 
 model Category {
-  id   String @id @default(uuid())
+  id   Int   @id @default(autoincrement())
   name String @unique
+  colorPreset Int @default(1)
 
   // Relations
   products Product[]
 }
 
 model Stock {
-  id          String   @id @default(uuid())
+  id          Int   @id @default(autoincrement())
   name        String
   type        StockTypeEnum  @default(CENTRAL)
   status      StockStatusEnum @default(ACTIVE)
@@ -98,12 +100,15 @@ model Stock {
 
   // Relations
   stockedProducts StockedProduct[]
+  originBatches      MovementBatch[] @relation("OriginStock")
+  destinationBatches MovementBatch[] @relation("DestinationStock")
+  
 }
 
 model StockedProduct {
-  id          String   @id @default(uuid())
-  productId   String
-  stockId     String
+  id          Int   @id @default(autoincrement())
+  productId   Int
+  stockId     Int
   quantity    Decimal
 
   // Relations
@@ -112,21 +117,25 @@ model StockedProduct {
 }
 
 model MovementBatch {
-  id            String   @id @default(uuid())
+  id            Int   @id @default(autoincrement())
   type          MovementTypeEnum
   observations  String?
   createdAt     DateTime @default(now())
-  userCreatorId String
+  userCreatorId Int
+  originStockId Int?
+  destinationStockId Int?
 
   // Relations
   products    MovementProduct[]
+  originStock     Stock? @relation("OriginStock", fields: [originStockId], references: [id])
+  destinationStock Stock? @relation("DestinationStock", fields: [destinationStockId], references: [id])
   userCreator User @relation(fields: [userCreatorId], references: [id])
 }
 
 model MovementProduct {
-  id            String   @id @default(uuid())
-  productId     String
-  movementBatchId String
+  id            Int   @id @default(autoincrement())
+  productId     Int
+  movementBatchId Int
   quantity      Decimal  @db.Decimal(10, 2)
   pricePerUnit  Decimal?  @db.Decimal(10, 2)
 
@@ -136,8 +145,8 @@ model MovementProduct {
 }
 
 model NfeProductMapping {
-  id          String   @id @default(uuid())
-  productId   String
+  id          Int   @id @default(autoincrement())
+  productId   Int
   nfeProductId String
 
   // Relations
@@ -145,9 +154,9 @@ model NfeProductMapping {
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
+  id        Int   @id @default(autoincrement())
   token     String   @unique
-  userId    String  
+  userId    Int  
   expiresAt DateTime @default(now())
   revoked  Boolean  @default(false)
 

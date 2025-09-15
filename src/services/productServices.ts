@@ -1,3 +1,4 @@
+import { Decimal } from "../../generated/prisma/runtime/library";
 import prisma from "../lib/prismaClient";
 import { iProduct, iProductsFilters, ProductCreateInput, ProductUpdateInput } from "../types/product";
 
@@ -5,12 +6,22 @@ import { iProduct, iProductsFilters, ProductCreateInput, ProductUpdateInput } fr
 
 export const getAllProductsService = async (productsFIlters: iProductsFilters) => {
 
-    const { offset, limit, name, categoryId, isBelowMinStock, orderBy, sortBy } = productsFIlters;
+    const { offset, limit, name, categoriesIds, isBelowMinStock, orderBy, sortBy, hasNoCodebar } = productsFIlters;
+    const productsOrder = sortBy && sortBy !== 'stockedQuantities' ?{ [sortBy]: orderBy || 'asc' } : { name: orderBy || 'asc' };
 
-    console.log(offset, limit, name, categoryId, isBelowMinStock, orderBy, sortBy)
+    
+    // Contabiliza quantidades, se necessário. 
+    const stockedProducts = sortBy === 'stockedQuantities' ? 
+    await prisma.stockedProduct.groupBy({
+        by: ['productId'],
+        _sum: { quantity: true },
+        orderBy: { _sum: { quantity: orderBy || 'desc' } },
+    
+    }).then((res) => res.map((p) => p.productId)
+    ) : null;
 
-    const productsOrder = sortBy ? { [sortBy]: orderBy || 'asc' } : { name: orderBy || 'asc' };
-    const where: any = { // Seta os filtros dinamicamente
+    // Seleciona os filtros
+    const where: any = { 
     ...(name && {
         OR: [
             { name: { contains: name, mode: "insensitive" } },
@@ -18,29 +29,65 @@ export const getAllProductsService = async (productsFIlters: iProductsFilters) =
             { codebar: { contains: name, mode: "insensitive" } },
         ],
         }),
-    ...(categoryId && { categoryId }),
-    ...(isBelowMinStock !== undefined && { isBelowMinStock: isBelowMinStock === 'true'})
+    ...(hasNoCodebar? { codebar: null  } : {}),
+    ...(categoriesIds?.length && { categoryId: { in: categoriesIds } }),
+    ...(isBelowMinStock !== undefined && { isBelowMinStock: isBelowMinStock === 'true'}),
     };
+
+    // Seleciona campos
+    const select = {
+        id: true,
+        name: true,
+        category: {select: { name: true, colorPreset: true }},
+        codebar: true,
+        minStock: true,
+        lastPrice: true,
+        isBelowMinStock: true,
+        measurement: true,
+        stockedQuantities: {select: { quantity: true } },
+      };
     
-    const [data, total] = await Promise.all([
+    let [data, total] = await Promise.all([
     prisma.product.findMany({
-      where,
+      where: {...where, ...(stockedProducts? { id: { [orderBy === 'desc' ? 'in': 'notIn']: stockedProducts } } : {})},
       skip: offset,
       take: limit,
       orderBy: productsOrder,
-      select: {
-        id: true,
-        name: true,
-        category: {select: { name: true }},
-        codebar: true,
-        minStock: true,
-        isBelowMinStock: true,
-        stockedQuantities: {select: { quantity: true } },
-      },
+      select: select,
       
     }),
     prisma.product.count({ where }),
   ]);
+
+  console.log(orderBy === 'desc' ? 'in stockedProducts: ': 'notIn stockedProducts:', data.length)
+
+
+    if(data.length < limit && stockedProducts){
+        console.log('limit:', limit, 'stockedProducts:' ,stockedProducts)
+       const remainingData = await prisma.product.findMany({
+            where : {...where, ...(stockedProducts? { id: { [orderBy === 'desc' ? 'notIn': 'in']: stockedProducts } } : {}) },
+            skip: offset,
+            take: limit - data.length,
+            orderBy: productsOrder,
+            select: select
+        })
+        
+        data = [...remainingData, ...data]
+        console.log(orderBy === 'desc' ? 'notIn stockedProducts: ': 'in stockedProducts:', remainingData.length)
+    }   
+
+    let products = data.map((p) => ({
+        ...p,
+        minStock: Number(p.minStock),
+        stockedQuantities: p.stockedQuantities
+            .reduce((sum, sq) => sum + Number(sq.quantity), 0),
+    }));
+
+    products = sortBy === 'stockedQuantities' ? [...products].sort((a, b) => {
+    if (a["stockedQuantities"] < b["stockedQuantities"]) return orderBy === "asc" ? -1 : 1;
+    if (a["stockedQuantities"] > b["stockedQuantities"]) return orderBy === "asc" ? 1 : -1;
+    return 0;
+    }) : products;
 
     return {
         pagination: {
@@ -49,12 +96,12 @@ export const getAllProductsService = async (productsFIlters: iProductsFilters) =
             limit,
             totalPages: Math.ceil(total / limit),
         },
-        data
+        products: products
     }
 };
 
 
-export const getProductByIdService = async (id: string) => {
+export const getProductByIdService = async (id: number) => {
     const product = await prisma.product.findUnique({
         where: { id: id },
         include: { stockedQuantities: true, category: true }
@@ -82,7 +129,7 @@ export const createProductService = async (productData: ProductCreateInput) => {
     return {...newProduct, minStock: Number(newProduct.minStock)} as iProduct;
 };
 
-export const updateProductService = async (productId: string, newProductProps: ProductUpdateInput) => {
+export const updateProductService = async (productId: number, newProductProps: ProductUpdateInput) => {
     const existingProduct = await prisma.product.findUnique({
         where: { id: productId }
     });
@@ -104,7 +151,7 @@ export const updateProductService = async (productId: string, newProductProps: P
 };
 
 
-export const deleteProductService = async (productId: string) => {
+export const deleteProductService = async (productId: number) => {
     const result = await prisma.product.delete({
         where: { id: productId }
     })
@@ -115,4 +162,5 @@ export const deleteProductService = async (productId: string) => {
 
     return result;
 };
+
     

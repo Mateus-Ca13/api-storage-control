@@ -21,7 +21,7 @@ async function main() {
       measurement: medida as "UN" | "KG" | "L" | "M",
       codebar: `00000000${i}`,
       categoryId: categoria.id,
-      minimumAmount: Math.floor(Math.random() * 10) + 1,
+      minStock: Math.floor(Math.random() * 10) + 1,
       description: `Descrição do Produto ${i}`,
     });
   }

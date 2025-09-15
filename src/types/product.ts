@@ -1,10 +1,11 @@
 export interface iProduct {
-    id: string
+    id: number
     name: string
     measurement: ProductMeasurementType
     description: string
     codebar: string | null
-    categoryId: string | null
+    lastPrice: number | null
+    categoryId: number | null
     createdAt: Date;
     minStock: number
     isBelowMinStock: boolean
@@ -19,8 +20,10 @@ export interface iProductsFilters {
   offset: number;
   limit: number;
   name?: string;
-  categoryId?: string;
+  categoriesIds?: number[];
   isBelowMinStock?: string;
   orderBy?: 'asc' | 'desc';
-  sortBy?: 'name' | 'categoryId' | 'quantity';
+  sortBy?: 'name' | 'categoryId' | 'stockedQuantities';
+  hasNoCodebar?: string;
+
 }
