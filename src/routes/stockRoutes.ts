@@ -10,7 +10,7 @@ router.get('/:id',  getStockByIdController);
 
 router.post('/', createStockController);
 
-router.patch('/:id', updateStockController);
+router.put('/:id', updateStockController);
 
 router.delete('/:id', deleteStockController);
 

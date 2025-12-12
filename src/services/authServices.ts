@@ -5,38 +5,6 @@ import jwt from "jsonwebtoken";
 import prisma from "../lib/prismaClient";
 import { RefreshToken } from "../../generated/prisma";
 
-export const registerUserService = async (userData: UserCreateInput) => {
-
-    const existingUser =  await prisma.user.findFirst({
-        where: {
-            OR: [
-            { email: userData.email },
-            { username: userData.username },
-            ],
-        },
-    });
-
-    if(existingUser){
-        throw new Error('O usuário fornecido já existe!');
-    }
-
-    const passwordHash = bcrypt.hashSync(userData.password, 10);
-    const formattedUserData: iUser = {...userData, password: passwordHash, createdAt: new Date()};
-    
-    const newUser = await prisma.user.create({
-        data: formattedUserData
-    });
-
-    if(!newUser){
-        throw new Error('Error ao criar usuário');
-    }
-
-    const { password, ...userWithoutPassword } = newUser;
-
-    return userWithoutPassword;
-}
-
-
 export const loginUserService = async (email: string, password: string) => {
     const user = await prisma.user.findFirst({
         where: {

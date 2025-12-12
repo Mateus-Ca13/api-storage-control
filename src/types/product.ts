@@ -7,16 +7,19 @@ export interface iProduct {
     lastPrice: number | null
     categoryId: number | null
     createdAt: Date;
+    updatedAt?: Date;
     minStock: number
     isBelowMinStock: boolean
+    
 }
 
 export const ProductMeasurementTuple = ["UN" , "KG" , "L" , "M"] as const; 
 export type ProductMeasurementType = (typeof ProductMeasurementTuple)[number];
 export type ProductCreateInput = Omit<iProduct, 'id' | 'createdAt' | 'isBelowMinStock'>;
-export type ProductUpdateInput = Partial<Omit<iProduct, 'id' | 'createdAt' | 'isBelowMinStock'>>;
+export type ProductUpdateInput = Partial<Omit<iProduct, 'id' | 'createdAt' | 'updatedAt' | 'isBelowMinStock'>>;
 
 export interface iProductsFilters {
+  stockId?: number;
   offset: number;
   limit: number;
   name?: string;

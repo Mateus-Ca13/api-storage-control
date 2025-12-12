@@ -16,13 +16,16 @@ export function sendResponse<T>(
 export function sendErrorResponse(
   res: Response,
   error: unknown,
-  status = 500
+  status = 500,
+  manualMessage: string | null = null,
 ) {
 
-  let message
+  let message;
   if (error instanceof ZodError) message = error.issues[0].message;
-  else if (error instanceof Error) message = error.message;
+  else if (error instanceof Error) message = error.message.replace(/\n/g, ' ');
   else message = String(error);
   
-  res.status(status).json({ success: false, data: null, message });
+  manualMessage && (message = manualMessage);
+
+  res.status(status).json({ success: false, data: error, message });
 }

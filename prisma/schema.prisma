@@ -57,6 +57,7 @@ model User {
   role          UserRoleEnum @default(ADMIN)
   password      String
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
 
   // Relations
   refreshTokens RefreshToken[]
@@ -68,15 +69,16 @@ model Product {
   name        String  
   description String  @default("")
   measurement ProductMeasurementEnum  @default(UN)
-  codebar     String?   @unique
+  codebar     String? @unique 
   categoryId  Int?   
-  lastPrice   Decimal? @db.Decimal(10, 2)
+  lastPrice   Decimal? @db.Decimal(10, 2)  @default(0)
   minStock Decimal @db.Decimal(10, 2) @default(0)
   isBelowMinStock Boolean @default(true)
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
 
   // Relations
-  category    Category? @relation(fields: [categoryId], references: [id])
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   stockedQuantities StockedProduct[]
   movements   MovementProduct[]
   nfeMappings NfeProductMapping[]
@@ -86,6 +88,8 @@ model Category {
   id   Int   @id @default(autoincrement())
   name String @unique
   colorPreset Int @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
 
   // Relations
   products Product[]
@@ -97,6 +101,7 @@ model Stock {
   type        StockTypeEnum  @default(CENTRAL)
   status      StockStatusEnum @default(ACTIVE)
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
 
   // Relations
   stockedProducts StockedProduct[]
@@ -112,8 +117,9 @@ model StockedProduct {
   quantity    Decimal
 
   // Relations
-  products     Product  @relation(fields: [productId], references: [id])
-  stock        Stock    @relation(fields: [stockId], references: [id])
+  products     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stock        Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  @@unique([stockId, productId])
 }
 
 model MovementBatch {
@@ -150,7 +156,7 @@ model NfeProductMapping {
   nfeProductId String
 
   // Relations
-  product     Product @relation(fields: [productId], references: [id])
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model RefreshToken {
@@ -161,6 +167,6 @@ model RefreshToken {
   revoked  Boolean  @default(false)
 
   // Relations
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

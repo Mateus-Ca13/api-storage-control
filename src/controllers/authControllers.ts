@@ -1,26 +1,14 @@
 import { Request, Response } from 'express';
-import { loginUserSchema, registerUserSchema } from '../schemas/authSchemas';
-import { loginUserService, logoutUserService, refreshTokenService, registerUserService } from '../services/authServices';
+import { loginUserSchema } from '../schemas/authSchemas';
+import { loginUserService, logoutUserService, refreshTokenService } from '../services/authServices';
 import { sendErrorResponse, sendResponse } from '../utils/response';
-import z from 'zod';
-import { UserCreateInput, UserLoginInput } from '../types/user';
 
+import { UserLoginInput } from '../types/user';
 
-export const registerUserController = async (req: Request, res: Response) => {
-    try {
-        const {confirmPassword, ...userDataWithoutConfirm} = registerUserSchema.parse(req.body.userData);
-        const userData: UserCreateInput = userDataWithoutConfirm;
-        const returnUser = await registerUserService(userData) ;
-        sendResponse(res, returnUser, 'Usuário registrado com sucesso', true, 201);
-        
-    }catch (error: unknown) {
-        sendErrorResponse(res, error, 400);
-    }
-};
 
 export const loginUserController = async (req: Request, res: Response) => {
     try {
-        const userCredentials: UserLoginInput = loginUserSchema.parse(req.body.userData);
+        const userCredentials: UserLoginInput = loginUserSchema.parse(req.body);
         const { accessToken, refreshToken } = await loginUserService(userCredentials.email, userCredentials.password);
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
