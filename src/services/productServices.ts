@@ -4,11 +4,43 @@ import { iProduct, iProductsFilters, ProductCreateInput, ProductUpdateInput } fr
 
 
 
-export const getAllProductsService = async (productsFIlters: iProductsFilters) => {
+export const getAllProductsService = async (productsFilters: iProductsFilters) => {
 
-    const { offset, limit, name, categoriesIds, isBelowMinStock, orderBy, sortBy, hasNoCodebar } = productsFIlters;
-    const productsOrder = sortBy && sortBy !== 'stockedQuantities' ?{ [sortBy]: orderBy || 'asc' } : { name: orderBy || 'asc' };
+    const { offset, limit, name, categoriesIds, isBelowMinStock, orderBy, sortBy, hasNoCodebar } = productsFilters;
+    const orderField = sortBy === 'stockedQuantities' ? 'stocked_quantities' : sortBy ?? 'name';
+    
+    const whereConditions: string[] = [];
+    const params: any[] = [];
+    let paramIndex = 1;
 
+        // Filtros
+    if (name) {
+    whereConditions.push(`(
+        p.name ILIKE $${paramIndex} OR
+        p.description ILIKE $${paramIndex} OR
+        p.codebar ILIKE $${paramIndex}
+    )`);
+    params.push(`%${name}%`);
+    paramIndex++;
+    }
+
+    if (hasNoCodebar) {
+    whereConditions.push(`p.codebar IS NULL`);
+    }
+
+    if (categoriesIds?.length) {
+    whereConditions.push(`p."categoryId" = ANY($${paramIndex})`);
+    params.push(categoriesIds);
+    paramIndex++;
+    }
+
+    if (isBelowMinStock !== undefined) {
+    whereConditions.push(`p."isBelowMinStock" = $${paramIndex}`);
+    params.push(isBelowMinStock === 'true');
+    paramIndex++;
+    }
+
+    const whereSql = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
     
     // Contabiliza quantidades, se necessário. 
     const stockedProducts = sortBy === 'stockedQuantities' ? 
