@@ -1,17 +1,16 @@
 
 import bcrypt from "bcryptjs";
-import { iUser, UserCreateInput } from "../types/user";
-import jwt from "jsonwebtoken";
 import prisma from "../lib/prismaClient";
-import { RefreshToken } from "../../generated/prisma";
+import { generateTokens, revokeTokenByJti } from "../utils/tokensUtils";
 
-export const loginUserService = async (email: string, password: string) => {
+export const loginUserService = async (usernameOrEmail: string, password: string) => {
     const user = await prisma.user.findFirst({
         where: {
-            email: {
-                equals: email,
-                mode: 'insensitive'
-            }
+            active: true,
+            OR: [
+                { email: { equals: usernameOrEmail, mode: "insensitive" }, },
+                { username: { equals: usernameOrEmail, mode: "insensitive" } },
+            ],
         }
     });
 
@@ -25,57 +24,47 @@ export const loginUserService = async (email: string, password: string) => {
         throw new Error('Email ou senha inválidos.');
     }
 
-    const refreshToken = jwt.sign({ id: user.id, username: user.username, email: user.email, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
-    const accessToken = jwt.sign({ id: user.id, username: user.username, email: user.email, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
-    
-    const refreshTokenToDb = { 
-        token: refreshToken,
-        userId: user.id,
-        expiresAt: new Date(Date.now() + 7*24*60*60*1000), // 7 days
-        revoked: false  
-    };
+    const {accessToken, refreshToken} = await generateTokens(user);
 
-    const refreshTokenEntry: RefreshToken = await prisma.refreshToken.create({
-        data: refreshTokenToDb
-    });
-
-    if(!refreshTokenEntry){
-        throw new Error('Error ao criar refresh token');
+    if(!accessToken || !refreshToken){
+        throw new Error('Error ao criar tokens de acesso.');
     }
     
-    return { accessToken, refreshToken };
- }
+    return { accessToken, refreshToken, userInfo: {email: user.email, role: user.role, username: user.name}};
+}
 
-export const logoutUserService = async (refreshToken: string) => {
+export const logoutUserService = async (jti: string) => {
 
     const storedTokens = await prisma.refreshToken.updateMany({
-        where: { token: refreshToken, revoked: false },
+        where: { jti: jti, revoked: false },
         data: { revoked: true }
     });
 
     if(storedTokens.count === 0){
-        throw new Error('Token inválido ou já revogado');
+        throw new Error('Token inválido ou já revogado.');
     }
 
-    return { message: 'Logout realizado com sucesso' };
+    return { message: 'Logout realizado com sucesso. Sessão revogada.' };
 }
 
-export const refreshTokenService = async (refreshToken: string) => {
+export const refreshTokenService = async (jti: string) => {
 
     const storedToken = await prisma.refreshToken.findUnique({
-        where: { token: refreshToken }
+        where: { jti: jti }
     }); 
     if(!storedToken || storedToken.revoked || storedToken.expiresAt < new Date()){
         throw new Error('Token inválido ou expirado');
     }
 
     const user = await prisma.user.findUnique({
-        where: { id: storedToken.userId }
+        where: { id: storedToken.userId, active: true}
     });
     if(!user){
         throw new Error('Usuário não encontrado');
     }
-    const newAccessToken = jwt.sign({ id: user.id, username: user.username, email: user.email, role: user.role }, process.env.JWT_SECRET as string, { expiresIn: '15m' });
-    
-    return { accessToken: newAccessToken }
+
+    await revokeTokenByJti(jti);
+    const { accessToken, refreshToken } = await generateTokens(user);
+
+    return { accessToken, refreshToken }
 }

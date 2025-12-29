@@ -22,6 +22,7 @@ API para controle de estoque de produtos, com gerenciamento de usuários, produt
 *   **Validação:** Zod
 *   **Autenticação:** JWT (jsonwebtoken) e bcryptjs
 *   **Segurança:** Helmet e CORS
+*   **Conversão de arquivos:** csvtojson
 
 ## Como Iniciar
 

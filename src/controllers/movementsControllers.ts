@@ -40,9 +40,9 @@ export const getMovementByIdController = async (req: Request, res: Response) => 
 
 export const createMovementController = async (req: Request, res: Response) => {
     try {
-        const movementData = movementRegisterSchema.parse(req.body);
-        log(movementData);
-        const result = await createMovementService(req.body);
+        const movementData = {...req.body, userCreatorId: Number((req as any).user?.id)}
+        const parsedMovementData = movementRegisterSchema.parse(movementData);
+        const result = await createMovementService(parsedMovementData);
         sendResponse(res, result, 'Movimentação criada com sucesso', true, 201);
         
     } catch (error: unknown) {

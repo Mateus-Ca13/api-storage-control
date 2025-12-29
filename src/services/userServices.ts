@@ -8,13 +8,16 @@ export const getAllUsersService = async (usersFilters: iUsersFilters) => {
     const { offset, limit, name, orderBy, sortBy } = usersFilters;
     const orderField = sortBy ?? 'name';
     const where: any = {
-        ...(name && {
-            OR: [
-                { name: { contains: name, mode: "insensitive" } },
-                { username: { contains: name, mode: "insensitive" } },
-                { email: { contains: name, mode: "insensitive" } },
-            ],
-        }),
+        AND: [
+            { active: true },
+            ...(name ? [{
+                OR: [
+                    { name: { contains: name, mode: "insensitive" } },
+                    { username: { contains: name, mode: "insensitive" } },
+                    { email: { contains: name, mode: "insensitive" } },
+                ],
+            }] : []),
+        ]
     };
 
     const [resultData, total] = await Promise.all([
@@ -31,7 +34,6 @@ export const getAllUsersService = async (usersFilters: iUsersFilters) => {
                 username: true,
                 email: true,
                 role: true,
-                createdAt: true,
             },
         }),
         prisma.user.count({ where }),
@@ -50,15 +52,19 @@ export const getAllUsersService = async (usersFilters: iUsersFilters) => {
 }
 
 export const getUserByIdService = async (id: number) => {
+
     const data = await prisma.user.findUnique({
-        where: { id: id },
+        where: { id: id, active: true},
     });
 
     if(!data){
         throw new Error('Usuário não encontrado');
     }
 
-    return data;
+    const { password, ...userWithoutPassword } = data;
+
+
+    return userWithoutPassword;
 }
 
 export const updateUserService = async (userId: number, userData: UserUpdateInput) => {
@@ -66,6 +72,7 @@ export const updateUserService = async (userId: number, userData: UserUpdateInpu
     const existingUser =  await prisma.user.findFirst({
         where: {
             id: { not: userId },
+            active: true,
             OR: [
             { email: userData.email },
             { username: userData.username },
@@ -91,7 +98,7 @@ export const updateUserService = async (userId: number, userData: UserUpdateInpu
 
 export const updatePasswordService = async (userId: number, currentPassword: string, newPassword: string) => {
     const user = await prisma.user.findUnique({
-        where: { id: userId },
+        where: { id: userId, active: true},
         select: { password: true },
     });
 
@@ -121,8 +128,8 @@ export const updatePasswordService = async (userId: number, currentPassword: str
 export const createUserService = async (userData: UserCreateInput) => {
     const existingUser =  await prisma.user.findFirst({
         where: {
+            active: true,
             OR: [ 
-                
             { email: userData.email },
             { username: userData.username },
             ],
@@ -130,7 +137,7 @@ export const createUserService = async (userData: UserCreateInput) => {
     });
 
     if(existingUser){
-        throw new Error('O usuário fornecido já existe!');
+        throw new Error('O usuário e/ou e-mail fornecidos já estão vinculados a uma conta.');
     }
 
     const passwordHash = bcrypt.hashSync(userData.password, 10);
@@ -151,5 +158,40 @@ export const createUserService = async (userData: UserCreateInput) => {
 
 
 export const deleteUserService = async (userId: number) => {
-    
+
+    const hasHistory = await prisma.movementBatch.count({
+        where: { userCreatorId: userId },
+    });
+
+    if (hasHistory > 0) {
+        // SOFT DELETE
+        try {
+            const user = await prisma.user.update({
+                where: { id: userId },
+                data: { active: false },
+            });
+
+            console.log(`Usuário [ ${user.name} ] deletado via SOFT DELETE.`);
+            return user;
+
+        } catch (error: any) {
+            if (error.code === 'P2025') throw new Error('Usuário não encontrado.');
+            throw error;
+        }
+
+    }else{
+        // HARD DELETE
+        try {
+            const deletedUser = await prisma.user.delete({
+            where: { id: userId }
+            });
+
+            console.log(`Usuário [ ${deletedUser.name} ] deletado via HARD DELETE.`);
+            return deletedUser;
+            
+        } catch (error: any) {
+            if (error.code === 'P2025') throw new Error('Usuário não encontrado.');
+            throw error;
+        }
+    }
 }

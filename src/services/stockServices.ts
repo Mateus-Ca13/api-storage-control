@@ -6,16 +6,19 @@ export const getAllStocksService = async (stocksFilters: iStocksFilters) => {
     const { offset, limit, name, type, status, orderBy, sortBy } = stocksFilters;
     const stocksOrder = sortBy ?{ [sortBy]: orderBy || 'asc' } : { name: orderBy || 'asc' };
 
-    const where: any = { 
-    ...(name && {
-        OR: [
-            { name: { contains: name, mode: "insensitive" } },
-            
-        ],
-        }),
-    ...(type && { type: type }),
-    ...(status && { status: status }),
+    const where: any = {
+        AND: [
+            { active: true }, 
+            ...(name ? [{
+                OR: [
+                    { name: { contains: name, mode: "insensitive" } },
+                ]
+            }] : []),
+            ...(type ? [{ type }] : []),
+            ...(status ? [{ status }] : []),
+        ]
     };
+
     const [data, total] = await Promise.all([ prisma.stock.findMany({
         where: where,
         skip: offset,
@@ -55,7 +58,7 @@ export const getAllStocksService = async (stocksFilters: iStocksFilters) => {
 export const getStockByIdService = async (id: number) => {
     
     const [data, total] = [await prisma.stock.findUnique({
-        where: { id: id },
+        where: { id: id, active: true },
     }),
     await prisma.stockedProduct.aggregate({
         _sum: {
@@ -78,6 +81,18 @@ export const getStockByIdService = async (id: number) => {
 }
 
 export const createStockService = async (stockData: StockCreateInput) => {
+
+    const existingStock = await prisma.stock.findFirst({
+        where: {
+            active: true,
+            name: stockData.name
+        },
+    });
+
+    if(existingStock){
+        throw new Error('O nome do estoque fornecido já está em uso.');
+    }
+
     const newStock = await prisma.stock.create({
         data: stockData
     });
@@ -92,35 +107,68 @@ export const createStockService = async (stockData: StockCreateInput) => {
 
 export const updateStockService = async (stockId: number, stockData: StockUpdateInput) => {
     const updatedStock = await prisma.stock.update({
-        where: { id: stockId },
+        where: { id: stockId, active: true},
         data: {...stockData, updatedAt: new Date()}
     });
 
     if(!updatedStock){
         throw new Error('Erro ao atualizar estoque');
     }
-
     return updatedStock;
 }
 
 export const deleteStockService = async (stockId: number) => {
 
-    const stockedProducts = await prisma.stockedProduct.findFirst({
-        where: { stockId: stockId, quantity: { gt: 0 } }
+    const itemsInside = await prisma.stockedProduct.count({
+        where: { 
+            stockId: stockId, 
+            quantity: { gt: 0 } 
+        }
     });
 
-    if(stockedProducts){
-        throw new Error('Não é possível deletar um estoque que possui produtos armazenados');
+    if (itemsInside > 0) {
+        throw new Error('Não é possível deletar um estoque que ainda possui produtos armazenados.');
     }
 
-    const deletedStock = await prisma.stock.delete({
-        where: { id: stockId }
+    const hasHistory = await prisma.movementBatch.count({
+        where: {
+            OR: [
+                { originStockId: stockId },
+                { destinationStockId: stockId }
+            ]
+        }
     });
 
-    if(!deletedStock){
-        throw new Error('Erro ao deletar estoque');
+    if (hasHistory > 0) {
+        //SOFT DELETE 
+        try {
+
+            const stock = await prisma.stock.update({
+                where: { id: stockId },
+                data: { status: 'INACTIVE', active: false},
+            });
+            console.log(`Estoque [ ${stock.name} ] deletado via SOFT DELETE.`);
+            return stock;
+
+        } catch (error: any) {
+             if (error.code === 'P2025') throw new Error('Estoque não encontrado.');
+             throw error;
+        }
+
+    } else {
+        // HARD DELETE
+        try {
+            const [_deletedStockedProducts, deletedStock ] = await prisma.$transaction([
+                prisma.stockedProduct.deleteMany({ where: { stockId: stockId } }),
+                prisma.stock.delete({ where: { id: stockId } })
+            ]);
+
+            console.log(`Estoque [ ${deletedStock.name} ] deletado via HARD DELETE.`);
+            return deletedStock;
+
+        } catch (error: any) {
+            if (error.code === 'P2025') throw new Error('Estoque não encontrado.');
+            throw error;
+        }
     }
-
-    return deletedStock;
-
-}
+};

@@ -1,18 +1,18 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middlewares/authMiddlewares';
+import { authMiddleware, roleMiddleware } from '../middlewares/authMiddlewares';
 import { createStockController, deleteStockController, getAllStocksController, getStockByIdController, updateStockController } from '../controllers/stockControllers';
 
 const router = Router();
 
-router.get('/',  getAllStocksController);
+router.get('/',  authMiddleware, getAllStocksController);
 
-router.get('/:id',  getStockByIdController);
+router.get('/:id',  authMiddleware, getStockByIdController);
 
-router.post('/', createStockController);
+router.post('/', authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]), createStockController);
 
-router.put('/:id', updateStockController);
+router.put('/:id', authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]), updateStockController);
 
-router.delete('/:id', deleteStockController);
+router.delete('/:id', authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]), deleteStockController);
 
 export default router;
 

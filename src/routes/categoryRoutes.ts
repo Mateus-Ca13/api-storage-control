@@ -1,18 +1,18 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middlewares/authMiddlewares';
+import { authMiddleware, roleMiddleware } from '../middlewares/authMiddlewares';
 import { createCategoryController, deleteCategoryController, getAllCategoriesController, getCategoryByIdController, updateCategoryController } from '../controllers/categoryControllers';
 
 const router = Router();
 
-router.get('/',  getAllCategoriesController);
+router.get('/',  authMiddleware, getAllCategoriesController);
 
-router.get('/:id',  getCategoryByIdController);
+router.get('/:id',  authMiddleware, getCategoryByIdController);
 
-router.post('/', createCategoryController);
+router.post('/', authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]), createCategoryController);
 
-router.put('/:id', updateCategoryController);
+router.put('/:id', authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]),updateCategoryController);
 
-router.delete('/:id', deleteCategoryController);
+router.delete('/:id', authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]),deleteCategoryController);
 
 export default router;
 

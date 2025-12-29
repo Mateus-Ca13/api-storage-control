@@ -51,13 +51,14 @@ enum MovementTypeEnum {
 
 model User {
   id            Int   @id @default(autoincrement())
-  name          String  
-  username      String   @unique
-  email         String   @unique 
+  name          String   // @unique via indice parcial
+  username      String   // @unique via indice parcial
+  email         String   // @unique via indice parcial
   role          UserRoleEnum @default(ADMIN)
   password      String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @default(now())
+  active        Boolean @default(true)
 
   // Relations
   refreshTokens RefreshToken[]
@@ -66,16 +67,17 @@ model User {
 
 model Product {
   id          Int   @id @default(autoincrement())
-  name        String  
+  name        String  // @unique via indice parcial
   description String  @default("")
   measurement ProductMeasurementEnum  @default(UN)
-  codebar     String? @unique 
+  codebar     String? // @unique via indice parcial 
   categoryId  Int?   
   lastPrice   Decimal? @db.Decimal(10, 2)  @default(0)
   minStock Decimal @db.Decimal(10, 2) @default(0)
   isBelowMinStock Boolean @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now())
+  active      Boolean @default(true)
 
   // Relations
   category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -97,11 +99,12 @@ model Category {
 
 model Stock {
   id          Int   @id @default(autoincrement())
-  name        String
+  name        String // @unique via indice parcial
   type        StockTypeEnum  @default(CENTRAL)
   status      StockStatusEnum @default(ACTIVE)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now())
+  active      Boolean @default(true)
 
   // Relations
   stockedProducts StockedProduct[]
@@ -161,7 +164,7 @@ model NfeProductMapping {
 
 model RefreshToken {
   id        Int   @id @default(autoincrement())
-  token     String   @unique
+  jti     String   @unique
   userId    Int  
   expiresAt DateTime @default(now())
   revoked  Boolean  @default(false)
@@ -169,4 +172,3 @@ model RefreshToken {
   // Relations
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
-

@@ -4,7 +4,6 @@ import { CategoryUpdateInput } from "../types/category";
 import { sendErrorResponse, sendResponse } from "../utils/response";
 import { Request, Response } from "express";
 
-
 export const getAllCategoriesController = async (req: Request, res: Response) => {
     const { offset = "0", limit = "10", name, orderBy, sortBy } = req.query;
     try {

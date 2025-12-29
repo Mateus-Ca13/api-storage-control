@@ -4,3 +4,9 @@ export interface iMovementProduct{
     quantity: number
     pricePerUnit: number | null
 }
+
+export interface iCreateMovementProduct {
+    productId: number
+    quantity: number
+    pricePerUnit: number | null
+}

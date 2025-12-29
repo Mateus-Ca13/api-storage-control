@@ -2,13 +2,18 @@ import helmet from "helmet";
 import cors from "cors";
 import express from 'express'
 import mainRouter from "./router";
+import cookieParser from 'cookie-parser';
 const app = express()
 const PORT = 8000
 
 app.use(helmet());
 app.use(express.json())
+app.use(cookieParser());
 app.use(cors({
-  origin: "*",
+  origin: [
+    "http://localhost:5173", // URL do frontend
+    "http://127.0.0.1:5173" // Para cobrir diferentes navegadores/configs // Permitir apenas o frontend,
+  ],
   credentials: true
 }));
 app.use(express.urlencoded({ extended: true }))

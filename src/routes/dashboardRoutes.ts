@@ -1,17 +1,18 @@
 import { Router } from 'express';
 import { getMainSummaryController, getMovementsSummaryController, getProductsSummaryController, getStocksSummaryController, getUsersSummaryController } from '../controllers/dashboardControllers';
+import { authMiddleware } from '../middlewares/authMiddlewares';
 
 const router = Router();
 
-router.get('/main', getMainSummaryController);
+router.get('/main', authMiddleware, getMainSummaryController);
 
-router.get('/stocks', getStocksSummaryController);
+router.get('/stocks', authMiddleware, getStocksSummaryController);
 
-router.get('/products', getProductsSummaryController);
+router.get('/products', authMiddleware, getProductsSummaryController);
 
-router.get('/movements', getMovementsSummaryController);
+router.get('/movements', authMiddleware, getMovementsSummaryController);
 
-router.get('/users', getUsersSummaryController);
+router.get('/users', authMiddleware, getUsersSummaryController);
 
 export default router;
 

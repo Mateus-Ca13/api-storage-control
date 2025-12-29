@@ -1,20 +1,20 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middlewares/authMiddlewares';
+import { authMiddleware, roleMiddleware } from '../middlewares/authMiddlewares';
 import { createUserController, deleteUserController, getAllUsersController, getUserByIdController, updateUserController, updateUserPasswordController } from '../controllers/userControllers';
 
 const router = Router();
 
-router.get('/',  getAllUsersController);
+router.get('/',  authMiddleware, getAllUsersController);
 
-router.get('/:id',  getUserByIdController);
+router.get('/:id',  authMiddleware, getUserByIdController);
 
-router.put('/:id', updateUserController);
+router.put('/:id', authMiddleware, roleMiddleware(["SUPER_ADMIN"]), updateUserController);
 
-router.put('/:id/password', updateUserPasswordController);
+router.put('/:id/password', authMiddleware, roleMiddleware(["SUPER_ADMIN"]), updateUserPasswordController);
 
-router.post('/', createUserController)
+router.post('/', authMiddleware, roleMiddleware(["SUPER_ADMIN"]) ,createUserController)
 
-router.delete('/:id', deleteUserController);
+router.delete('/:id', authMiddleware, roleMiddleware(["SUPER_ADMIN"]), deleteUserController);
 
 export default router;
 

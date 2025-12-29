@@ -1,8 +1,9 @@
-import { Prisma } from "../../generated/prisma";
-import { Decimal } from "../../generated/prisma/runtime/library";
+import { Prisma } from "@prisma/client";
 import prisma from "../lib/prismaClient";
 import { iMovementFilters, MovementCreateInput, MovementUpdateInput } from "../types/movementBatch"
-import { iMovementProduct } from "../types/movementProduct";
+import { iCreateMovementProduct } from "../types/movementProduct";
+import { calculateMinStockStatus } from "../utils/calculateMinStockStatus";
+import { validateIfProductsAreActive, validateIfStocksAreActive, validateIfUserExists } from "../utils/validateActive";
 
 
 export const getAllMovementsService = async (movementsFilters: iMovementFilters) => {
@@ -136,8 +137,13 @@ export const getMovementByIdService = async (id: number) => {
 
 export const createMovementService = async (movementData: MovementCreateInput) => {
     const { products, ...movementBatchData } = movementData;
-
+    
     return prisma.$transaction(async (tx) => {
+
+        await validateIfStocksAreActive(tx, [movementData.originStockId, movementData.destinationStockId])
+        await validateIfProductsAreActive(tx, products.map(p => p.productId))
+        await validateIfUserExists(tx, movementData.userCreatorId)
+
         const batch = await tx.movementBatch.create({
             data: {
                 ...movementBatchData,
@@ -193,7 +199,7 @@ export const createMovementService = async (movementData: MovementCreateInput) =
 
         if (batch.type === 'EXIT') {
             if (!batch.originStockId)
-                throw new Error("originStockId obrigatório em EXIT");
+                throw new Error("Estoque de origem é brigatório em saídas");
 
             for (const p of products) {
                 const item = await tx.stockedProduct.findUnique({
@@ -227,7 +233,7 @@ export const createMovementService = async (movementData: MovementCreateInput) =
 
         if (batch.type === 'TRANSFER') {
             if (!batch.originStockId || !batch.destinationStockId)
-                throw new Error("originStockId e destinationStockId obrigatórios em TRANSFER");
+                throw new Error("Estoque de origem e destino são obrigatórios em transferências");
 
             // valida origem primeiro
             for (const p of products) {
@@ -294,28 +300,12 @@ export const deleteMovementService = async (movementId: number) => {
 
 // ============= Services Auxiliares =============/
 
-const recalcBelowMinStock = async (tx: Prisma.TransactionClient, products: iMovementProduct[]) => {
+const recalcBelowMinStock = async (tx: Prisma.TransactionClient, products: iCreateMovementProduct[]) => {
 
     for (const p of products) {
-        const total = await tx.stockedProduct.aggregate({
-            where: { productId: p.productId },
-            _sum: { quantity: true },
-        });
-
-        // garante que sempre seja Decimal
-        const totalQty =
-            total._sum.quantity instanceof Decimal
-                ? total._sum.quantity
-                : new Decimal(0);
-
-        const productInfo = await tx.product.findUnique({
-            where: { id: p.productId },
-            select: { minStock: true },
-        });
-
-        if (!productInfo) continue;
-
-        const isBelow = totalQty.lessThan(productInfo.minStock);
+        const product = await tx.product.findUnique({ where: { id: p.productId } });
+        // Usa o mesmo helper
+        const isBelow = await calculateMinStockStatus(tx, p.productId, product.minStock);
 
         await tx.product.update({
             where: { id: p.productId },

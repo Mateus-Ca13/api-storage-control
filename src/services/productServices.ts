@@ -2,48 +2,59 @@ import prisma from "../lib/prismaClient";
 import { registerProductSchema } from "../schemas/productsSchema";
 import { iProduct, iProductsFilters, ProductCreateInput, ProductUpdateInput } from "../types/product";
 import csv from "csvtojson";
+import { calculateMinStockStatus } from "../utils/calculateMinStockStatus";
+import { Decimal } from "@prisma/client/runtime/library";
 
 
 export const getAllProductsService = async (productsFilters: iProductsFilters) => {
-
     const { offset, limit, name, categoriesIds, isBelowMinStock, stockId, orderBy, sortBy, hasNoCodebar } = productsFilters;
-    const orderField = sortBy === 'stockedQuantities' ? 'stocked_quantities' : sortBy === 'categoryId' ? '"categoryId"' : sortBy ?? 'name';
-    const orderDirection = orderBy?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
+    const validSortColumns = ['name', 'stocked_quantities', '"categoryId"', '"minStock"', '"lastPrice"', '"isBelowMinStock"'];
+    const safeSortBy = sortBy === 'stockedQuantities' ? 'stocked_quantities' : 
+                       sortBy === 'categoryId' ? '"categoryId"' : 
+                       validSortColumns.includes(sortBy || '') ? sortBy : 'name';
+    
+    const safeOrderBy = orderBy?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 
     const whereConditions: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
 
-    // Filtros
+    // --- FILTRO DE SEGURANÇA (SOFT DELETE) ---
+    whereConditions.push(`p.active = true`); 
+
+    // --- FILTROS ---
     if (name) {
-    whereConditions.push(`(
-        p.name ILIKE $${paramIndex} OR
-        p.description ILIKE $${paramIndex} OR
-        p.codebar ILIKE $${paramIndex}
-    )`);
-    params.push(`%${name}%`);
-    paramIndex++;
+        whereConditions.push(`(
+            p.name ILIKE $${paramIndex} OR
+            p.description ILIKE $${paramIndex} OR
+            p.codebar ILIKE $${paramIndex}
+        )`);
+        params.push(`%${name}%`);
+        paramIndex++;
     }
 
     if (hasNoCodebar) {
-    whereConditions.push(`p.codebar IS NULL`);
+        whereConditions.push(`p.codebar IS NULL`);
     }
 
     if (categoriesIds?.length) {
-    whereConditions.push(`p."categoryId" = ANY($${paramIndex})`);
-    params.push(categoriesIds);
-    paramIndex++;
+        whereConditions.push(`p."categoryId" = ANY($${paramIndex}::int[])`);
+        params.push(categoriesIds);
+        paramIndex++;
     }
 
     if (isBelowMinStock !== undefined) {
-    whereConditions.push(`p."isBelowMinStock" = $${paramIndex}`);
-    params.push(isBelowMinStock === 'true');
-    paramIndex++;
+        whereConditions.push(`p."isBelowMinStock" = $${paramIndex}`);
+        params.push(isBelowMinStock === 'true');
+        paramIndex++;
     }
 
     if (stockId !== undefined) {
         whereConditions.push(`p.id IN (
-            SELECT "productId" FROM "StockedProduct" WHERE "stockId" = $${paramIndex}
+            SELECT "productId" 
+            FROM "StockedProduct" 
+            WHERE "stockId" = $${paramIndex} AND "quantity" > 0
         )`);
         params.push(stockId);
         paramIndex++;
@@ -51,66 +62,77 @@ export const getAllProductsService = async (productsFilters: iProductsFilters) =
 
     const whereSql = whereConditions.length ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-    const stockJoinSql = stockId !== undefined 
-        ? `LEFT JOIN "StockedProduct" sp ON sp."productId" = p.id AND sp."stockId" = ${stockId}`
-        : `LEFT JOIN "StockedProduct" sp ON sp."productId" = p.id`;
+    let stockJoinSql = `LEFT JOIN "StockedProduct" sp ON sp."productId" = p.id`;
     
-        
-        // Query principal
+    if (stockId !== undefined) {
+        stockJoinSql += ` AND sp."stockId" = $${paramIndex}`;
+        params.push(stockId); 
+        paramIndex++; 
+    }
+
+    // --- QUERY PRINCIPAL ---
     const products = await prisma.$queryRawUnsafe<any[]>(`
-    SELECT
-        p.id,
-        p.name,
-        p.codebar,
-        p."minStock",
-        p."lastPrice",
-        p."isBelowMinStock",
-        p.measurement,
-        c.name as category_name,
-        c."colorPreset" as category_color,
-        COALESCE(SUM(sp.quantity), 0) as stocked_quantities
+        SELECT
+            p.id,
+            p.name,
+            p.codebar,
+            p."minStock",
+            p."lastPrice",
+            p."isBelowMinStock",
+            p.measurement,
+            c.name as category_name,
+            c."colorPreset" as category_color,
+            COALESCE(SUM(sp.quantity), 0) as stocked_quantities
         FROM "Product" p
         LEFT JOIN "Category" c ON c.id = p."categoryId" 
         ${stockJoinSql}
         ${whereSql}
         GROUP BY p.id, c.name, c."colorPreset"
-        ORDER BY ${orderField} ${orderDirection}
-        OFFSET ${offset}
-        LIMIT ${limit};
-        `, ...params);
+        ORDER BY ${safeSortBy} ${safeOrderBy}
+        OFFSET $${paramIndex}
+        LIMIT $${paramIndex + 1};
+        `, ...params, offset, limit);
 
-    // Total para paginação
+    // --- QUERY TOTAL (COUNT) ---
+    let countParamsEndIndex = 0;
+    if (name) countParamsEndIndex++;
+    if (hasNoCodebar) countParamsEndIndex;
+    if (categoriesIds?.length) countParamsEndIndex++;
+    if (isBelowMinStock !== undefined) countParamsEndIndex++;
+    if (stockId !== undefined) countParamsEndIndex++; 
+
+    const countParams = params.slice(0, countParamsEndIndex); 
+
     const total = await prisma.$queryRawUnsafe<any[]>(`
         SELECT COUNT(*)
         FROM "Product" p
         ${whereSql};
-        `, ...params);
+        `, ...countParams);
 
     return {
-    pagination: {
-        total: Number(total[0].count),
-        offset,
-        limit,
-        totalPages: Math.ceil(Number(total[0].count) / limit),
-    },
-    products: products.map(p => ({
-        id: p.id,
-        name: p.name,
-        codebar: p.codebar? p.codebar : null,
-        minStock: Number(p.minStock),
-        lastPrice: p.lastPrice,
-        isBelowMinStock: p.isBelowMinStock,
-        measurement: p.measurement,
-        category: (!!p.category_name || !!p.category_color) ? { name: p.category_name, colorPreset: p.category_color } : null,
-        stockedQuantities: Number(p.stocked_quantities),
-    }))
+        pagination: {
+            total: Number(total[0]?.count || 0),
+            offset,
+            limit,
+            totalPages: Math.ceil(Number(total[0]?.count || 0) / limit),
+        },
+        products: products.map(p => ({
+            id: p.id,
+            name: p.name,
+            codebar: p.codebar ? p.codebar : null,
+            minStock: Number(p.minStock),
+            lastPrice: p.lastPrice,
+            isBelowMinStock: p.isBelowMinStock,
+            measurement: p.measurement,
+            category: (!!p.category_name || !!p.category_color) ? { name: p.category_name, colorPreset: p.category_color } : null,
+            stockedQuantities: Number(p.stocked_quantities),
+        }))
     };
 };
-
 export const getProductByIdService = async (id: number) => {
     
     const prodData = await prisma.product.findUnique({
-        where: { id: id },
+        where: { id: id, active: true},
         include: { stockedQuantities: {select: {stock: {select: {id: true, name: true, type: true}}, quantity: true}, where: { quantity: {gt: 0}}}, 
         category: true, 
         movements: {orderBy: {movementBatch: {createdAt:'desc'}}, select: {id: true,  quantity: true, movementBatch: {select: {id: true, createdAt: true, type: true, originStock: {select: {id: true, name: true}}, destinationStock: {select: {id: true, name: true}}}} },
@@ -137,8 +159,8 @@ export const getProductByCodebarService = async (codebar: string, stockId?: numb
         throw new Error('Código de barras inválido.');
     }
     
-    const prodData = await prisma.product.findUnique({
-        where: { codebar: codebar },
+    const prodData = await prisma.product.findFirst({
+        where: { codebar: codebar, active: true},
         include: { stockedQuantities: {select: {stock: {select: {id: true, name: true, type: true}}, quantity: true}, where: { quantity: {gt: 0}, stockId: stockId ? stockId : undefined}}, 
         category: true, 
         movements: {orderBy: {movementBatch: {createdAt:'desc'}}, select: {id: true,  quantity: true, movementBatch: {select: {id: true, createdAt: true, type: true, originStock: {select: {id: true, name: true}}, destinationStock: {select: {id: true, name: true}}}} },
@@ -241,10 +263,15 @@ export const createProductService = async (productData: ProductCreateInput) => {
 
     if(productData.codebar !==  null){
         const exists = await prisma.product.findFirst({
-            where: { codebar: productData.codebar }
+            where: { 
+                active: true,
+                OR: [
+                { codebar: productData.codebar, },
+                { name: productData.name, }
+            ]}
         });
     
-        if (exists) throw new Error("Esse código de barras já está em uso.");
+        if (exists) throw new Error("O código de barras e/ou nome do produto fornecido já estão em uso.");
     }
 
     const formattedProductData = { ...productData, createdAt: new Date()};
@@ -270,11 +297,17 @@ export const createProductsListService = async (productsData: ProductCreateInput
 
             if (product.codebar !== null) {
                 const exists = await tx.product.findFirst({
-                    where: { codebar: product.codebar }
+                    where: { 
+                        active: true,
+                        OR: [
+                            { codebar: product.codebar, },
+                            { name: product.name, }
+                        ]
+                    }
                 });
 
                 if (exists) {
-                    throw new Error(`O código de barras vinculado ao produto ${product.name} (código ${product.codebar}) já está em uso.`);
+                    throw new Error(`O código de barras e/ou nome vinculado ao produto ${product.name} (código ${product.codebar}) já estão em uso.`);
                 }
             }
             
@@ -293,56 +326,89 @@ export const createProductsListService = async (productsData: ProductCreateInput
 
 
 export const updateProductService = async (productId: number, newProductProps: ProductUpdateInput) => {
+
     const existingProduct = await prisma.product.findUnique({
-        where: { id: productId }
+        where: { id: productId, active: true}
     });
 
     if(!existingProduct) throw new Error('Produto não encontrado');
-
-    if(newProductProps.codebar !== null){
-        const exists = await prisma.product.findFirst({
+    
+    if(newProductProps.codebar){
+        const codebarExists = await prisma.product.findFirst({
             where: { codebar: newProductProps.codebar, NOT: { id: productId } }
         });
 
-        if (exists) throw new Error("Esse código de barras já está em uso.");
+        if (codebarExists) throw new Error("Esse código de barras já está em uso.");
     }
   
-    
+    let isBelowMinStock = existingProduct.isBelowMinStock;
+
+    if (newProductProps.minStock !== undefined && newProductProps.minStock !== null){
+        isBelowMinStock = await calculateMinStockStatus(prisma, productId, new Decimal(newProductProps.minStock));
+    }
 
 
     const updatedProduct = await prisma.product.update({
         where: { id: productId },
-        data: {...newProductProps, codebar: newProductProps.codebar === '' || newProductProps.codebar === null ? {set: null}: newProductProps.codebar, updatedAt: new Date()}
-    });
-
-    if(!updatedProduct){
-        throw new Error('Erro ao atualizar produto');
-    }
+        data: {...newProductProps, isBelowMinStock, updatedAt: new Date()}
+    })
+    console.log(updatedProduct)
 
     return {...updatedProduct, minStock: Number(updatedProduct.minStock)} as iProduct;
+
 };
 
 
 export const deleteProductService = async (productId: number) => {
 
-    const stockedProducts = await prisma.stockedProduct.findFirst({
+    const stockCount = await prisma.stockedProduct.count({
         where: { productId: productId, quantity: { gt: 0 } }
     });
 
-    if(stockedProducts){
+    if (stockCount > 0) {
         throw new Error('Não é possível deletar um produto que está armazenado em algum estoque.');
-    }
-    
-    const result = await prisma.product.delete({
-        where: { id: productId }
-    })
-    
+    }    
 
-    if(!result){
-        throw new Error('Erro ao deletar produto');
-    }
+    const hasHistory = await prisma.movementProduct.count({
+        where: { productId: productId }
+    });
 
-    return result;
+    if (hasHistory > 0) {
+        // SOFT DELETE
+        try { 
+            const product = await prisma.product.update({
+                where: { id: productId },
+                data: { active: false } 
+            });
+
+            console.log(`Produto [ ${product.name} ] deletado via SOFT DELETE.`);
+            
+            return product;
+
+        } catch (error: any) {
+            if (error.code === 'P2025') throw new Error('Produto não encontrado para exclusão.');
+            throw error;
+        }
+        
+
+    } else {
+        // HARD DELETE
+        try {
+            const [_deletedStockedProducts, deletedProduct ] = await prisma.$transaction([
+                prisma.stockedProduct.deleteMany({ where: { productId: productId } }),
+                prisma.product.delete({ where: { id: productId } })
+            ]);
+
+            console.log(`Produto [ ${deletedProduct.name} ] deletado via HARD DELETE.`);
+
+            return deletedProduct;
+
+        } catch (error: any) {
+            if (error.code === 'P2025') throw new Error('Produto não encontrado para exclusão.');
+            throw error;
+        }
+    }
 };
+
 
     

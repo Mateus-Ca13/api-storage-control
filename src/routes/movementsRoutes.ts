@@ -1,14 +1,14 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middlewares/authMiddlewares';
-import { createMovementController, getAllMovementsController, getMovementByIdController } from '../controllers/movementsControllers';
+import { authMiddleware, roleMiddleware } from '../middlewares/authMiddlewares';
+import { createMovementController, deleteMovementController, getAllMovementsController, getMovementByIdController } from '../controllers/movementsControllers';
 
 const router = Router();
 
-router.get('/',  getAllMovementsController);
+router.get('/',  authMiddleware, getAllMovementsController);
 
-router.get('/:id',  getMovementByIdController);
+router.get('/:id',  authMiddleware, getMovementByIdController);
 
-router.post('/', createMovementController);
+router.post('/', authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]), createMovementController);
 
 export default router;
 

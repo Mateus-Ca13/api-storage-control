@@ -1,8 +1,8 @@
 import { Request, Response } from "express"
 import { sendErrorResponse, sendResponse } from "../utils/response";
-import {  createUserService, getAllUsersService, getUserByIdService, updatePasswordService, updateUserService } from "../services/userServices";
+import {  createUserService, deleteUserService, getAllUsersService, getUserByIdService, updatePasswordService, updateUserService } from "../services/userServices";
 import { updateUserPasswordSchema, updateUserSchema } from "../schemas/userSchemas";
-import { UserCreateInput, UserUpdateInput } from "../types/user";
+import { UserCreateInput } from "../types/user";
 import { registerUserSchema } from "../schemas/authSchemas";
 
 
@@ -72,7 +72,15 @@ export const createUserController = async (req: Request, res: Response) => {
 
 export const deleteUserController = async (req: Request, res: Response) => {
     try {
+        const { id } = req.params;
+        const currentUserId = (req as any).user?.id; 
+        console.log(id, currentUserId);
         
+        if (Number(currentUserId) === Number(id)) {
+            return sendErrorResponse(res, new Error('Operação rejeitada. Um usuário não pode deletar a si mesmo.'), 403);
+        }
+        const result = await deleteUserService(Number(id));
+        sendResponse(res, result, 'Usuário deletado com sucesso', true, 200);
     } catch (error: unknown) {
         sendErrorResponse(res, error, 500);
     }

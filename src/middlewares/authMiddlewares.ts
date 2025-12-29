@@ -1,39 +1,58 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt, { JwtPayload } from 'jsonwebtoken'
-import { sendResponse } from '../utils/response';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import { iUserPayload, UserRoleType } from '../types/user';
+import { sendErrorResponse } from '../utils/response';
 
-declare global {
-  namespace Express {
-    interface Request {
-      userId?: string;
-      username?: string;
-      email?: string;
-      userRole?: string;
-    }
-  }
+export interface IAuthRequest extends Request {
+    user?: iUserPayload; 
 }
 
-export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
+export const authMiddleware = (req: IAuthRequest, res: Response, next: NextFunction) => {
 
-  if (!authHeader) {
-    return sendResponse(res, null, 'Token não fornecido', false, 401);
-  }
+    let token = req.cookies.accessToken;
 
-  const [, token] = authHeader.split(" "); // Bearer <token>
+    if (!token) {
+        const authHeader = req.headers['authorization'];
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.split(' ')[1];
+        }
+    }
 
-  try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET as string) as JwtPayload;
+    if (!token) {
+        return sendErrorResponse(res, null, 401, 'Acesso negado. Token não fornecido.');
+    }
 
-    req.userId = payload.id;
-    req.username = payload.username;
-    req.email = payload.email;
-    req.userRole = payload.role;
+    try {
+        const decoded = jwt.verify(
+            token,
+            process.env.JWT_ACCESS_TOKEN_SECRET as string 
+        ) as JwtPayload & iUserPayload; 
 
-    next();
-    
-  } catch (err) {
-    return sendResponse(res, null, 'Token inválido', false, 401);
-  }
+        req.user = decoded; // Define informações de usuário para uso no roleMiddleware 
+
+        next();
+        
+    } catch (error: any) {
+
+        console.error("Falha na autenticação JWT:", error.message);
+        return sendErrorResponse(res, 'Token de acesso inválido ou expirado.', 401);
+    }
 };
 
+export const roleMiddleware = (allowedRoles: UserRoleType[]) => {
+    
+    return (req: IAuthRequest, res: Response, next: NextFunction) => {
+        
+        const userRole = req.user?.role as UserRoleType | undefined;
+        
+        if (!userRole) {
+            return sendErrorResponse(res, 'Erro de autenticação interna: Role do usuário não encontrada.', 500);
+        }
+        
+        if (allowedRoles.includes(userRole)) {
+            next();
+        } else {
+            return sendErrorResponse(res, null, 403, 'Acesso Proibido. Você não possui a permissão necessária.');
+        }
+    };
+};

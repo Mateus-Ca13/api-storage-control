@@ -116,15 +116,23 @@ export const updateCategoryService = async (CategoryId: number, categoryData: Ca
 
 export const deleteCategoryService = async (categoryId: number) => {
     
-    const deletedCategory = await prisma.category.delete({
-        where: { id: categoryId }
-    });
+    const [_updatedProducts, deletedCategory
+    ] = await prisma.$transaction([
+        prisma.product.updateMany({
+            where: { categoryId: categoryId },
+            data: { categoryId: null },
+        }),
+        prisma.category.delete({
+            where: { id: categoryId },
+        }),
+    ]);
 
     if(!deletedCategory){
         throw new Error('Erro ao deletar categoria');
     }
 
-    return deletedCategory;
-
-    
+    return {
+        deletedCategory: deletedCategory,
+        updatedProductsCount: _updatedProducts.count
+    }; 
 }

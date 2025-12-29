@@ -1,4 +1,4 @@
-import { iMovementProduct } from "./movementProduct"
+import { iCreateMovementProduct } from "./movementProduct"
 
 export interface iMovementBatch {
     id: number
@@ -14,7 +14,7 @@ export const MovementBatchTuple = ["ENTRY", "EXIT", "TRANSFER"] as const;
 export type MovementBatchType = (typeof MovementBatchTuple)[number];
 
 
-export type MovementCreateInput = Omit<iMovementBatch, 'id' | 'createdAt'> & { products: iMovementProduct[] }
+export type MovementCreateInput = Omit<iMovementBatch, 'id' | 'createdAt'> & { products: iCreateMovementProduct[] }
 export type MovementUpdateInput = Pick<iMovementBatch, 'observations'>;
 
 export interface iMovementFilters {

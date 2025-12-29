@@ -1,25 +1,25 @@
 import { Router } from 'express';
 import { createProductController, createProductsListController, deleteProductController, getAllProductsController, getProductByCodebarController, getProductByIdController, getProductsCsvToJsonController, updateProductController } from '../controllers/productControllers';
-import { authMiddleware } from '../middlewares/authMiddlewares';
+import { authMiddleware, roleMiddleware } from '../middlewares/authMiddlewares';
 import { upload } from '../middlewares/uploadMiddleware';
 
 const router = Router();
 
-router.get('/',  getAllProductsController);
+router.get('/',  authMiddleware, getAllProductsController);
 
-router.get('/:id',  getProductByIdController);
+router.get('/:id',  authMiddleware, getProductByIdController);
 
-router.get('/codebar/:codebar',  getProductByCodebarController);
+router.get('/codebar/:codebar',  authMiddleware, getProductByCodebarController);
 
-router.post('/import-csv', upload.single('file'), getProductsCsvToJsonController)
+router.post('/import-csv', upload.single('file'), authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]), getProductsCsvToJsonController)
 
-router.post('/', createProductController);
+router.post('/', authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]), createProductController);
 
-router.post('/list', createProductsListController);
+router.post('/list', authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]), createProductsListController);
 
-router.put('/:id', updateProductController);
+router.put('/:id', authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]), updateProductController);
 
-router.delete('/:id', deleteProductController);
+router.delete('/:id', authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]),deleteProductController);
 
 export default router;
 
