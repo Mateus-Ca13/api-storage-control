@@ -16,7 +16,7 @@ const validateIfStocksAreActive = async (tx: Prisma.TransactionClient, stocksIds
 
         // Comparamos com o cleanIds que só tem números válidos
         if (foundStocks.length !== cleanIds.length) {
-            throw new Error("Operação negada: Um ou mais estoques selecionados estão desativados, inativos ou não existem.");
+            throw new Error("Operação negada: Um ou mais estoques selecionados estão desativados ou não existem.");
         }
     }
 }
@@ -43,7 +43,7 @@ const validateIfProductsAreActive = async (tx: Prisma.TransactionClient, product
 
 const validateIfUserExists = async (tx: Prisma.TransactionClient, userId: number) => {
     const user = await tx.user.findUnique({
-        where: { id: userId },
+        where: { id: userId, active: true },
         select: { id: true }
     });
 

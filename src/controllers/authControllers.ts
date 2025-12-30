@@ -22,7 +22,7 @@ export const loginUserController = async (req: Request, res: Response) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
-            maxAge: 1 * 60 * 1000, // 15 minutos
+            maxAge: 15 * 60 * 1000, // 15 minutos
             path: "/",
         });
         
@@ -99,7 +99,7 @@ export const refreshTokenController = async (req: Request, res: Response) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
-            maxAge: 1 * 60 * 1000, // 15 minutos
+            maxAge: 15 * 60 * 1000, // 15 minutos
             path: "/",
         });
 

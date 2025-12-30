@@ -16,7 +16,7 @@ export async function generateTokens(user: iUser): Promise<TokenPair> {
     const accessToken = jwt.sign(
         { id: user.id, username: user.username, email: user.email, role: user.role },
         process.env.JWT_ACCESS_TOKEN_SECRET as string, 
-        { expiresIn: '1m' } // 15 minutos
+        { expiresIn: '15m' } // 15 minutos
     );
 
     const refreshToken = jwt.sign(

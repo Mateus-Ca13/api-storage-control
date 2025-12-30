@@ -47,7 +47,7 @@ async function seedSimple() {
     const usuarios: UserCreateInput = {
         name: `Mateus Cavichion`,
         username: `Cavichion`,
-        email: `mateuscavichion9@gmail.com`,
+        email: `admin@gmail.com`,
         password: passwordHash,
         role: "SUPER_ADMIN",
       };
@@ -100,16 +100,16 @@ async function seedMassive() {
 
   const users: UserCreateInput[] = [
     {
-      name: `Admin Massivo`,
-      username: `admin_massive`,
-      email: `admin.massive@example.com`,
+      name: `Admin`,
+      username: `admin`,
+      email: `admin@example.com`,
       password: passwordHash,
       role: "ADMIN",
     },
     {
-      name: `Super Admin Massivo`,
-      username: `super_admin_massive`,
-      email: `superadmin.massive@example.com`,
+      name: `Super Admin`,
+      username: `super_admin`,
+      email: `superadmin@example.com`,
       password: passwordHash,
       role: "SUPER_ADMIN",
     },
@@ -159,11 +159,6 @@ async function main() {
             process.exit(1);
     }
 }
-
-
-
-
-
 
 main()
   .catch((e) => console.error(e))

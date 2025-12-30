@@ -1,4 +1,4 @@
-# API de Controle de Estoque - Divino Oleiro
+# API de Controle de Estoque
 
 API para controle de estoque de produtos, com gerenciamento de usuários, produtos, categorias, estoques e movimentações.
 
@@ -11,16 +11,15 @@ API para controle de estoque de produtos, com gerenciamento de usuários, produt
 *   **Estoques:** Gerenciamento de múltiplos estoques (Central, Secundário) com status (Ativo, Manutenção, Inativo).
 *   **Movimentações:** Registro de entradas, saídas e transferências de produtos entre estoques.
 *   **Dashboard:** Visão geral do estoque, com informações sobre produtos abaixo do estoque mínimo, etc.
-*   **Mapeamento de NFe:** Mapeamento de produtos da NFe para produtos do sistema.
-*   **Relatórios:** Geração de relatórios de movimentações, estoque atual, etc.
+*   **Mapeamento de NFe:** Mapeamento de produtos da NFe para produtos do sistema. (Em desenvolvimento)
 
 ## Tecnologias Utilizadas
 
-*   **Backend:** Node.js com Express e TypeScript
+*   **Backend:** Node.js com Express.js e TypeScript
 *   **ORM:** Prisma
 *   **Banco de Dados:** PostgreSQL
-*   **Validação:** Zod
-*   **Autenticação:** JWT (jsonwebtoken) e bcryptjs
+*   **Validação e tratamento:** Zod e Multer
+*   **Autenticação:** JWT (jsonwebtoken), cookie-parser e bcryptjs
 *   **Segurança:** Helmet e CORS
 *   **Conversão de arquivos:** csvtojson
 
@@ -28,7 +27,7 @@ API para controle de estoque de produtos, com gerenciamento de usuários, produt
 
 1.  **Clone o repositório:**
     ```bash
-    git clone <URL_DO_REPOSITORIO>
+    git clone https://github.com/Mateus-Ca13/api-storage-control.git
     ```
 2.  **Instale as dependências:**
     ```bash
@@ -38,8 +37,9 @@ API para controle de estoque de produtos, com gerenciamento de usuários, produt
     Crie um arquivo `.env` na raiz do projeto e adicione as seguintes variáveis:
     ```
     DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
-    JWT_SECRET="SUA_CHAVE_SECRETA"
-    REFRESH_TOKEN_SECRET="SUA_CHAVE_SECRETA_REFRESH"
+    DATABASE_PASSWORD="SENHA_DB"
+    JWT_REFRESH_TOKEN_SECRET="SUA_CHAVE_SECRETA"
+    JWT_ACCESS_TOKEN_SECRET="SUA_CHAVE_SECRETA"
     ```
 4.  **Execute as migrações do banco de dados:**
     ```bash
@@ -57,7 +57,6 @@ API para controle de estoque de produtos, com gerenciamento de usuários, produt
 *   `/dashboard` - Visão geral do C.E.
 *   `/stocks` - Estoques
 *   `/users` - Usuários
-*   `/nfe-codes` - Códigos cProd
 *   `/movements` - Movimentações
 *   `/categories` - Categorias
-*   `/reports` - Relatórios
+*   `/nfe-codes` - Códigos cProd (Em desenvolvimento)

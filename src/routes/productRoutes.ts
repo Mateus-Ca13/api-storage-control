@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { createProductController, createProductsListController, deleteProductController, getAllProductsController, getProductByCodebarController, getProductByIdController, getProductsCsvToJsonController, updateProductController } from '../controllers/productControllers';
 import { authMiddleware, roleMiddleware } from '../middlewares/authMiddlewares';
-import { upload } from '../middlewares/uploadMiddleware';
+import uploadMiddleware from '../middlewares/uploadMiddleware';
 
 const router = Router();
 
@@ -11,7 +11,7 @@ router.get('/:id',  authMiddleware, getProductByIdController);
 
 router.get('/codebar/:codebar',  authMiddleware, getProductByCodebarController);
 
-router.post('/import-csv', upload.single('file'), authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]), getProductsCsvToJsonController)
+router.post('/import-csv', uploadMiddleware, authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]), getProductsCsvToJsonController)
 
 router.post('/', authMiddleware, roleMiddleware(["ADMIN", "SUPER_ADMIN"]), createProductController);
 
