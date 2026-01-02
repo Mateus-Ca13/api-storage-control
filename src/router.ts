@@ -12,14 +12,14 @@ import userRoutes from "./routes/userRoutes";
 const mainRouter = Router();
 
 const availableRoutes = [
-  '/auth -> Login e autenticação',
-  '/products -> Produtos',
+    '/auth -> Login e autenticação',
+    '/products -> Produtos',
     '/dashboard -> Visão geral do C.E.',
     '/stocks -> Estoques',
     '/users -> Usuários',
-    '/nfe-codes -> Códigos cProd',
     '/movements -> Movimentações',
     '/categories -> Categorias',
+    '/nfe-codes (NÃO DISPONÍVEL) -> Códigos cProd',
     '/reports (NÃO DISPONÍVEL) -> Relatórios'
 ]
 
@@ -34,7 +34,7 @@ mainRouter.use('/users', userRoutes)
 
 mainRouter.use('/', (req, res) => {
   res.send(` 
-    API de Controle de Estoque - Divino Oleiro 
+    API de Controle de Estoque 
     Rotas disponíveis:
     ------------------------
     ` 
