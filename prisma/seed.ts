@@ -12,15 +12,15 @@ async function seedSimple() {
   const catHigiene = await prisma.category.create({ data: { name: "Higiene", colorPreset: 3 } });
 
 
-  const produtos = [];
+  const products = [];
 
   for (let i = 1; i <= 10; i++) {
     const categoria = [catAlimentos, catBebidas, catLimpeza, catHigiene][Math.floor(Math.random() * 4)];
-    const medida = ["UN", "KG", "L", "M"][Math.floor(Math.random() * 4)];
+    const measurement = ["UN", "KG", "L", "M"][Math.floor(Math.random() * 4)];
 
-    produtos.push({
+    products.push({
       name: `Produto ${i}`,
-      measurement: medida as "UN" | "KG" | "L" | "M",
+      measurement: measurement as "UN" | "KG" | "L" | "M",
       codebar: `00000000${i}`,
       categoryId: categoria.id,
       minStock: Math.floor(Math.random() * 10) + 1,
@@ -28,11 +28,11 @@ async function seedSimple() {
     });
   }
 
-  await prisma.product.createMany({ data: produtos });
+  await prisma.product.createMany({ data: products });
 
-  const estoques = []
+  const stocks = []
   for (let i = 1; i <= 2; i++) {
-    estoques.push({
+    stocks.push({
       name: `Estoque ${i}`,
       type: ["CENTRAL", "SECONDARY"][Math.floor(Math.random() * 2)] as "CENTRAL" | "SECONDARY",
       status: ["ACTIVE", "MAINTENANCE", "INACTIVE"][Math.floor(Math.random() * 3)] as "ACTIVE" | "MAINTENANCE" | "INACTIVE",
@@ -40,11 +40,11 @@ async function seedSimple() {
 
   }
 
-  await prisma.stock.createMany({ data: estoques });
+  await prisma.stock.createMany({ data: stocks });
 
-    const passwordHash = bcrypt.hashSync("admin", 10);
+    const passwordHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD as string, 10);
 
-    const usuarios: UserCreateInput = {
+    const users: UserCreateInput = {
         name: `Mateus Cavichion`,
         username: `Cavichion`,
         email: `admin@gmail.com`,
@@ -52,7 +52,7 @@ async function seedSimple() {
         role: "SUPER_ADMIN",
       };
 
-    await prisma.user.createMany({ data: usuarios });
+    await prisma.user.createMany({ data: users });
 
   console.log("Seed finalizada!");
   
@@ -96,7 +96,7 @@ async function seedMassive() {
     });
   }
   await prisma.stock.createMany({ data: stocks });
-  const passwordHash = bcrypt.hashSync("admin", 10);
+  const passwordHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD as string, 10);
 
   const users: UserCreateInput[] = [
     {
