@@ -11,9 +11,9 @@ app.use(express.json())
 app.use(cookieParser());
 app.use(cors({
   origin: [
-    "http://localhost:5173", "http://localhost:5174", // URL do frontend
-    "http://127.0.0.1:5173", "http://127.0.0.1:5174" // Para cobrir diferentes navegadores/configs // Permitir apenas o frontend,
-
+    "http://localhost:5173", // Dev
+    "https://divinooleiro.cloud", // Produção (Sem www)
+    "https://www.divinooleiro.cloud" // Produção (Com www)
   ],
   credentials: true
 }));
